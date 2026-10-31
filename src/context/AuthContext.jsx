@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     return parsed?.role === "admin";
   });
 
-  // Handle incoming OAuth callback params and look up persistent user data by Discord ID
+  // Handle incoming OAuth callback params and preserve Discord user profile
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discordUsername = params.get("username");
@@ -23,7 +23,6 @@ export const AuthProvider = ({ children }) => {
     const discordAvatar = params.get("avatar");
 
     if (discordUsername && discordId) {
-      // Key persistent storage strictly to the unique Discord user ID
       const storageKey = `underwatch_profile_${discordId}`;
       const savedProfile = JSON.parse(localStorage.getItem(storageKey) || "{}");
       
@@ -42,11 +41,9 @@ export const AuthProvider = ({ children }) => {
       setUser(liveUser);
       setIsAdmin(liveUser.role === "admin");
       
-      // Save both active session and permanent profile indexed by Discord ID
       localStorage.setItem("underwatch_active_user", JSON.stringify(liveUser));
       localStorage.setItem(storageKey, JSON.stringify(liveUser));
 
-      // Clean browser address bar
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -58,15 +55,10 @@ export const AuthProvider = ({ children }) => {
   const updateUserProfile = (updatedDetails) => {
     setUser((prev) => {
       const updated = { ...prev, ...updatedDetails };
-      
-      // Save to current active session
       localStorage.setItem("underwatch_active_user", JSON.stringify(updated));
-      
-      // Permanently anchor to Discord ID
       if (updated.id) {
         localStorage.setItem(`underwatch_profile_${updated.id}`, JSON.stringify(updated));
       }
-      
       return updated;
     });
   };
