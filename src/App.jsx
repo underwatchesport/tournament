@@ -27,7 +27,7 @@ const AppContent = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
   const handleTabChange = (tab) => {
-    if (tab === "login") {
+    if (tab === "login" || tab === "auth") {
       setIsAuthModalOpen(true);
     } else {
       setActiveTab(tab);
@@ -40,7 +40,6 @@ const AppContent = () => {
         return <AdminDashboard />;
       case "admin-tournaments":
         return <TournamentManager />;
-      case "admin-[#disputes]":
       case "admin-disputes":
         return <DisputeHub />;
       case "admin-users":
@@ -56,42 +55,51 @@ const AppContent = () => {
     if (activeTab === "profile") {
       return <PlayerProfile />;
     }
+
     if (activeTab === "teams") {
       return <TeamBuilder />;
     }
+
     if (activeTab === "leaderboard") {
       return <Leaderboard />;
     }
-    return <TournamentHub />;
+
+    if (activeTab.startsWith("admin")) {
+      if (!isAdmin) {
+        return (
+          <div className="p-12 text-center text-red-400">
+            Access Restricted. Please log in with admin credentials (`admin` / `admin`).
+          </div>
+        );
+      }
+
+      return (
+        <div className="flex flex-1 w-full min-h-[calc(100vh-73px)]">
+          <AdminSidebar activeAdminTab={activeAdminTab} setActiveAdminTab={setActiveAdminTab} />
+          <main className="flex-1 p-6 bg-[#0B0E14] overflow-y-auto">
+            {renderAdminContent()}
+          </main>
+        </div>
+      );
+    }
+
+    return (
+      <main className="max-w-7xl mx-auto p-6">
+        <TournamentHub />
+      </main>
+    );
   };
 
   return (
-    <div className="min-h-screen bg-[#0B0E14] text-white flex flex-col font-sans antialiased">
-      <Navbar
-        activeTab={activeTab}
+    <div className="min-h-screen bg-[#0B0E14] flex flex-col font-sans">
+      <Navbar 
+        activeTab={activeTab} 
+        setActiveTab={handleTabChange}
         onTabChange={handleTabChange}
         onOpenAuth={() => setIsAuthModalOpen(true)}
       />
-
-      <div className="flex-1 flex">
-        {isAdmin && (
-          <AdminSidebar
-            activeTab={activeAdminTab}
-            onTabChange={setActiveAdminTab}
-          />
-        )}
-
-        <main className="flex-1 p-6 max-w-7xl mx-auto w-full">
-          {isAdmin && activeAdminTab.startsWith("admin-")
-            ? renderAdminContent()
-            : renderContent()}
-        </main>
-      </div>
-
-      <AuthModal
-        isOpen={isAuthModalOpen}
-        onClose={() => setIsAuthModalOpen(false)}
-      />
+      {renderContent()}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <BattleTagModal />
     </div>
   );
