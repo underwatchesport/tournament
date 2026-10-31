@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTournaments } from "../../context/TournamentContext.jsx";
 import { useAuth } from "../../context/AuthContext.jsx";
-import { validateTeamEligibility } from "../../utils/srValidators.js";
 
 export const TournamentHub = () => {
   const { tournaments, registerTeamForTournament, updateTeamRoster } = useTournaments();
@@ -31,7 +30,7 @@ export const TournamentHub = () => {
     }
   }, [user]);
 
-  // Handle Captain Creating Squad
+  // Handle Captain Creating Squad (Bypasses full 5-player requirement so teammates can join via code)
   const handleCreateTeam = (e) => {
     e.preventDefault();
     setFormErrors([]);
@@ -62,9 +61,9 @@ export const TournamentHub = () => {
       players: [captainPlayer]
     };
 
-    const validation = validateTeamEligibility(teamPayload, selectedTournament.maxSR);
-    if (!validation.isEligible) {
-      setFormErrors(validation.errors);
+    // Check SR cap only against captain if set on tournament
+    if (selectedTournament.maxSR && captainPlayer.sr > selectedTournament.maxSR) {
+      setFormErrors([`Your SR (${captainPlayer.sr}) exceeds the tournament maximum SR cap of ${selectedTournament.maxSR}.`]);
       return;
     }
 
