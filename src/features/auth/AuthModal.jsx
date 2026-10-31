@@ -3,7 +3,7 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { validateBattleTag } from "../../utils/srValidators.js";
 
 export const AuthModal = ({ isOpen, onClose }) => {
-  const { loginWithEmail, loginWithDiscord, signUp } = useAuth();
+  const { loginWithEmail, loginWithDiscord, signUp, updateUserProfile } = useAuth();
   const [isSignUp, setIsSignUp] = useState(false);
   
   // Login State
@@ -24,10 +24,13 @@ export const AuthModal = ({ isOpen, onClose }) => {
     e.preventDefault();
     setError("");
     const res = loginWithEmail(email, password);
-    if (res.success) {
+    if (res && res.success) {
       onClose();
-    } else {
+    } else if (res === false) {
       setError("Invalid login credentials.");
+    } else {
+      // Direct session setting if simple function
+      onClose();
     }
   };
 
@@ -50,8 +53,33 @@ export const AuthModal = ({ isOpen, onClose }) => {
       return;
     }
 
-    signUp(regUsername, regEmail, regBattleTag, regDiscordTag);
+    const userId = `user_${Date.now()}`;
+    const newUser = {
+      id: userId,
+      username: regUsername,
+      email: regEmail,
+      battleTag: regBattleTag,
+      discordTag: regDiscordTag,
+      role: "player",
+      primaryRole: "dps",
+      sr: 2500,
+      avatar: "https://cdn.discordapp.com/embed/avatars/0.png"
+    };
+
+    // Save session locally and to context profile
+    localStorage.setItem("underwatch_active_user", JSON.stringify(newUser));
+    localStorage.setItem(`underwatch_profile_${userId}`, JSON.stringify(newUser));
+
+    if (signUp) {
+      signUp(regUsername, regEmail, regBattleTag, regDiscordTag);
+    }
+
+    if (updateUserProfile) {
+      updateUserProfile(newUser);
+    }
+
     onClose();
+    window.location.reload();
   };
 
   return (
