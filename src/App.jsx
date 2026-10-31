@@ -7,6 +7,11 @@ import { AdminSidebar } from "./components/layout/AdminSidebar.jsx";
 import { AuthModal } from "./features/auth/AuthModal.jsx";
 import { PlayerProfile } from "./features/player-profile/PlayerProfile.jsx";
 
+// Public Imports
+import { TournamentHub } from "./features/tournaments/TournamentHub.jsx";
+import { TeamBuilder } from "./features/teams/TeamBuilder.jsx";
+import { Leaderboard } from "./features/leaderboards/Leaderboard.jsx";
+
 // Back Office Imports
 import { AdminDashboard } from "./admin/dashboard/AdminDashboard.jsx";
 import { TournamentManager } from "./admin/tournament-mgr/TournamentManager.jsx";
@@ -50,6 +55,14 @@ const AppContent = () => {
       return <PlayerProfile />;
     }
 
+    if (activeTab === "teams") {
+      return <TeamBuilder />;
+    }
+
+    if (activeTab === "leaderboard") {
+      return <Leaderboard />;
+    }
+
     if (activeTab.startsWith("admin")) {
       if (!isAdmin) {
         return (
@@ -71,12 +84,7 @@ const AppContent = () => {
 
     return (
       <main className="max-w-7xl mx-auto p-6">
-        <div className="p-8 bg-[#141A24] rounded-xl border border-[#232D3F]">
-          <h1 className="text-2xl font-bold text-white mb-2">Welcome to Underwatch Portal</h1>
-          <p className="text-[#8A99AD]">
-            Current Section: <span className="text-[#00F0FF] font-semibold">{activeTab}</span>
-          </p>
-        </div>
+        <TournamentHub />
       </main>
     );
   };
