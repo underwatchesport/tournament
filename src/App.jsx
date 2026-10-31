@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AuthProvider, useAuth } from "./context/AuthContext.jsx";
 import { AdminProvider } from "./context/AdminContext.jsx";
 import { TournamentProvider } from "./context/TournamentContext.jsx";
@@ -10,7 +10,6 @@ import { BattleTagModal } from "./components/BattleTagModal.jsx";
 
 // Public Imports
 import { TournamentHub } from "./features/tournaments/TournamentHub.jsx";
-import { TeamBuilder } from "./features/teams/TeamBuilder.jsx";
 import { Leaderboard } from "./features/leaderboards/Leaderboard.jsx";
 
 // Back Office Imports
@@ -26,12 +25,26 @@ const AppContent = () => {
   const [activeAdminTab, setActiveAdminTab] = useState("admin-dashboard");
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // Automatically transition to Back Office when signing in as Admin
+  useEffect(() => {
+    if (isAdmin) {
+      setActiveTab("admin");
+    }
+  }, [isAdmin]);
+
   const handleTabChange = (tab) => {
     if (tab === "login" || tab === "auth") {
       setIsAuthModalOpen(true);
-    } else {
-      setActiveTab(tab);
+      return;
     }
+
+    // Protect Back Office from non-admin users
+    if (tab.startsWith("admin") && !isAdmin) {
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    setActiveTab(tab);
   };
 
   const renderAdminContent = () => {
@@ -53,23 +66,38 @@ const AppContent = () => {
 
   const renderContent = () => {
     if (activeTab === "profile") {
-      return <PlayerProfile />;
-    }
-
-    if (activeTab === "teams") {
-      return <TeamBuilder />;
+      return (
+        <main className="max-w-7xl mx-auto p-6">
+          <PlayerProfile />
+        </main>
+      );
     }
 
     if (activeTab === "leaderboard") {
-      return <Leaderboard />;
+      return (
+        <main className="max-w-7xl mx-auto p-6">
+          <Leaderboard />
+        </main>
+      );
     }
 
     if (activeTab.startsWith("admin")) {
       if (!isAdmin) {
         return (
-          <div className="p-12 text-center text-red-400">
-            Access Restricted. Please log in with admin credentials (`admin` / `admin`).
-          </div>
+          <main className="max-w-7xl mx-auto p-12 text-center">
+            <div className="bg-[#141A24] border border-red-500/30 p-8 rounded-xl max-w-md mx-auto space-y-4">
+              <h3 className="text-xl font-bold text-red-400">ACCESS RESTRICTED</h3>
+              <p className="text-xs text-[#8A99AD]">
+                Administrator privileges are required to view the Back Office.
+              </p>
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="bg-[#00F0FF] text-black font-bold px-4 py-2 rounded text-xs hover:bg-[#00F0FF]/90 transition-all"
+              >
+                Sign In as Admin
+              </button>
+            </div>
+          </main>
         );
       }
 
@@ -99,7 +127,11 @@ const AppContent = () => {
         onOpenAuth={() => setIsAuthModalOpen(true)}
       />
       {renderContent()}
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <AuthModal
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)}
+        onAdminSuccess={() => setActiveTab("admin")}
+      />
       <BattleTagModal />
     </div>
   );

@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 
-export const AuthModal = ({ isOpen, onClose }) => {
+export const AuthModal = ({ isOpen, onClose, onAdminSuccess }) => {
   const { loginWithDiscord, loginWithEmail } = useAuth();
   const [showAdminLogin, setShowAdminLogin] = useState(false);
   const [adminUsername, setAdminUsername] = useState("");
@@ -21,6 +21,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
 
     const res = loginWithEmail(adminUsername, adminPassword);
     if (res && res.success) {
+      if (onAdminSuccess) onAdminSuccess();
       onClose();
     } else {
       setError("Invalid administrator credentials.");
@@ -53,7 +54,6 @@ export const AuthModal = ({ isOpen, onClose }) => {
         )}
 
         <div className="space-y-4">
-          {/* Main Discord Button */}
           <button
             onClick={handleDiscordAuth}
             className="w-full bg-[#5865F2] hover:bg-[#4752C4] text-white font-bold py-3 px-4 rounded-md text-sm flex items-center justify-center gap-2 transition-all shadow-lg"

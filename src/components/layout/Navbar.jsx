@@ -2,19 +2,11 @@ import React from "react";
 import { useAuth } from "../../context/AuthContext.jsx";
 
 export const Navbar = ({ activeTab, setActiveTab, onTabChange, onOpenAuth }) => {
-  const { user, logout } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
 
   const handleTabClick = (tab) => {
     if (onTabChange) onTabChange(tab);
     if (setActiveTab) setActiveTab(tab);
-  };
-
-  const handleAuthClick = () => {
-    if (onOpenAuth) {
-      onOpenAuth();
-    } else {
-      handleTabClick("login");
-    }
   };
 
   return (
@@ -33,14 +25,18 @@ export const Navbar = ({ activeTab, setActiveTab, onTabChange, onOpenAuth }) => 
         >
           Tournaments
         </button>
-        <button
-          onClick={() => handleTabClick("leaderboard")}
-          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
-            activeTab === "leaderboard" ? "bg-[#00F0FF] text-black" : "text-[#8A99AD] hover:text-white"
-          }`}
-        >
-          Leaderboards
-        </button>
+        
+        {/* Back Office Tab Rendered Exclusively for Admins */}
+        {isAdmin && (
+          <button
+            onClick={() => handleTabClick("admin")}
+            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+              activeTab === "admin" ? "bg-[#FFD100] text-black" : "text-[#FFD100] hover:text-white"
+            }`}
+          >
+            Back Office
+          </button>
+        )}
       </div>
 
       <div>
@@ -53,10 +49,13 @@ export const Navbar = ({ activeTab, setActiveTab, onTabChange, onOpenAuth }) => 
             />
             <div className="text-left hidden sm:block">
               <div className="text-xs font-bold text-white">{user.username}</div>
-              <div className="text-[10px] text-[#00F0FF] font-mono">{user.battleTag || user.discordTag}</div>
+              <div className="text-[10px] text-[#00F0FF] font-mono">{isAdmin ? "Admin Account" : user.battleTag}</div>
             </div>
             <button
-              onClick={logout}
+              onClick={() => {
+                logout();
+                handleTabClick("tournaments");
+              }}
               className="text-xs bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 px-3 py-1.5 rounded transition-all font-semibold"
             >
               Logout
@@ -64,7 +63,7 @@ export const Navbar = ({ activeTab, setActiveTab, onTabChange, onOpenAuth }) => 
           </div>
         ) : (
           <button
-            onClick={handleAuthClick}
+            onClick={onOpenAuth}
             className="bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold px-4 py-2 rounded text-xs transition-all"
           >
             Sign In / Register
