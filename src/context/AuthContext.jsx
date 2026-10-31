@@ -4,18 +4,18 @@ const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem("underwatch_user");
+    const saved = localStorage.getItem("underwatch_active_user");
     return saved ? JSON.parse(saved) : null;
   });
 
   const [isAdmin, setIsAdmin] = useState(() => {
-    const saved = localStorage.getItem("underwatch_user");
+    const saved = localStorage.getItem("underwatch_active_user");
     if (!saved) return false;
     const parsed = JSON.parse(saved);
     return parsed?.role === "admin";
   });
 
-  // Handle incoming OAuth callback params and preserve state
+  // Handle incoming OAuth callback params and look up persistent user data by Discord ID
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discordUsername = params.get("username");
@@ -23,23 +23,30 @@ export const AuthProvider = ({ children }) => {
     const discordAvatar = params.get("avatar");
 
     if (discordUsername && discordId) {
-      const existing = JSON.parse(localStorage.getItem("underwatch_user") || "{}");
+      // Key persistent storage strictly to the unique Discord user ID
+      const storageKey = `underwatch_profile_${discordId}`;
+      const savedProfile = JSON.parse(localStorage.getItem(storageKey) || "{}");
       
       const liveUser = {
-        id: `discord_${discordId}`,
+        id: discordId,
         username: discordUsername,
         email: `${discordUsername}@discord.com`,
-        battleTag: existing.battleTag || "",
-        discordTag: `${discordUsername}`,
-        role: existing.role || "player",
+        battleTag: savedProfile.battleTag || "",
+        discordTag: discordUsername,
+        role: savedProfile.role || "player",
         avatar: discordAvatar,
-        primaryRole: existing.primaryRole || "dps",
-        sr: existing.sr || 2500
+        primaryRole: savedProfile.primaryRole || "dps",
+        sr: savedProfile.sr || 2500
       };
       
       setUser(liveUser);
       setIsAdmin(liveUser.role === "admin");
-      localStorage.setItem("underwatch_user", JSON.stringify(liveUser));
+      
+      // Save both active session and permanent profile indexed by Discord ID
+      localStorage.setItem("underwatch_active_user", JSON.stringify(liveUser));
+      localStorage.setItem(storageKey, JSON.stringify(liveUser));
+
+      // Clean browser address bar
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -51,7 +58,15 @@ export const AuthProvider = ({ children }) => {
   const updateUserProfile = (updatedDetails) => {
     setUser((prev) => {
       const updated = { ...prev, ...updatedDetails };
-      localStorage.setItem("underwatch_user", JSON.stringify(updated));
+      
+      // Save to current active session
+      localStorage.setItem("underwatch_active_user", JSON.stringify(updated));
+      
+      // Permanently anchor to Discord ID
+      if (updated.id) {
+        localStorage.setItem(`underwatch_profile_${updated.id}`, JSON.stringify(updated));
+      }
+      
       return updated;
     });
   };
@@ -59,7 +74,7 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     setUser(null);
     setIsAdmin(false);
-    localStorage.removeItem("underwatch_user");
+    localStorage.removeItem("underwatch_active_user");
   };
 
   return (
