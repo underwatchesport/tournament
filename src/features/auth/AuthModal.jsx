@@ -15,6 +15,7 @@ export const AuthModal = ({ isOpen, onClose }) => {
   const [regEmail, setRegEmail] = useState("");
   const [regBattleTag, setRegBattleTag] = useState("");
   const [regDiscordTag, setRegDiscordTag] = useState("");
+  const [regSr, setRegSr] = useState(2500);
 
   const [error, setError] = useState("");
 
@@ -29,7 +30,6 @@ export const AuthModal = ({ isOpen, onClose }) => {
     } else if (res === false) {
       setError("Invalid login credentials.");
     } else {
-      // Direct session setting if simple function
       onClose();
     }
   };
@@ -60,13 +60,12 @@ export const AuthModal = ({ isOpen, onClose }) => {
       email: regEmail,
       battleTag: regBattleTag,
       discordTag: regDiscordTag,
+      sr: parseInt(regSr, 10) || 2500,
       role: "player",
       primaryRole: "dps",
-      sr: 2500,
       avatar: "https://cdn.discordapp.com/embed/avatars/0.png"
     };
 
-    // Save session locally and to context profile
     localStorage.setItem("underwatch_active_user", JSON.stringify(newUser));
     localStorage.setItem(`underwatch_profile_${userId}`, JSON.stringify(newUser));
 
@@ -191,18 +190,33 @@ export const AuthModal = ({ isOpen, onClose }) => {
               />
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-[#8A99AD] mb-1">
-                Overwatch BattleTag <span className="text-[#00F0FF]">*</span>
-              </label>
-              <input
-                type="text"
-                value={regBattleTag}
-                onChange={(e) => setRegBattleTag(e.target.value)}
-                placeholder="Tracer#12345"
-                className="w-full bg-[#0B0E14] border border-[#232D3F] rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
-                required
-              />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block text-xs font-semibold text-[#8A99AD] mb-1">
+                  BattleTag <span className="text-[#00F0FF]">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={regBattleTag}
+                  onChange={(e) => setRegBattleTag(e.target.value)}
+                  placeholder="Tracer#12345"
+                  className="w-full bg-[#0B0E14] border border-[#232D3F] rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#8A99AD] mb-1">
+                  SR Rating <span className="text-[#FFD100]">*</span>
+                </label>
+                <input
+                  type="number"
+                  value={regSr}
+                  onChange={(e) => setRegSr(e.target.value)}
+                  placeholder="2500"
+                  className="w-full bg-[#0B0E14] border border-[#232D3F] rounded-md px-3 py-1.5 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
+                  required
+                />
+              </div>
             </div>
 
             <div>

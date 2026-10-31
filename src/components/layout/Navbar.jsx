@@ -34,14 +34,6 @@ export const Navbar = ({ activeTab, setActiveTab, onTabChange, onOpenAuth }) => 
           Tournaments
         </button>
         <button
-          onClick={() => handleTabClick("teams")}
-          className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
-            activeTab === "teams" ? "bg-[#00F0FF] text-black" : "text-[#8A99AD] hover:text-white"
-          }`}
-        >
-          Teams & Rosters
-        </button>
-        <button
           onClick={() => handleTabClick("leaderboard")}
           className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
             activeTab === "leaderboard" ? "bg-[#00F0FF] text-black" : "text-[#8A99AD] hover:text-white"
