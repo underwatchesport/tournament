@@ -1,14 +1,21 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import { AUTH_CONFIG } from "../utils/constants.js";
 
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // START WITH NULL USER - NO MOCK ACCOUNT DEFAULT
-  const [user, setUser] = useState(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem("underwatch_user");
+    return saved ? JSON.parse(saved) : null;
+  });
 
-  // Check URL parameters when Discord redirects back to the site
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const saved = localStorage.getItem("underwatch_user");
+    if (!saved) return false;
+    const parsed = JSON.parse(saved);
+    return parsed?.role === "admin";
+  });
+
+  // Handle incoming OAuth callback params and preserve state
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discordUsername = params.get("username");
@@ -16,84 +23,43 @@ export const AuthProvider = ({ children }) => {
     const discordAvatar = params.get("avatar");
 
     if (discordUsername && discordId) {
+      const existing = JSON.parse(localStorage.getItem("underwatch_user") || "{}");
+      
       const liveUser = {
         id: `discord_${discordId}`,
         username: discordUsername,
         email: `${discordUsername}@discord.com`,
-        battleTag: `${discordUsername}#0000`,
+        battleTag: existing.battleTag || "",
         discordTag: `${discordUsername}`,
-        role: "player",
-        avatar: discordAvatar
+        role: existing.role || "player",
+        avatar: discordAvatar,
+        primaryRole: existing.primaryRole || "dps",
+        sr: existing.sr || 2500
       };
+      
       setUser(liveUser);
-      setIsAdmin(false);
-
-      // Clean parameters from address bar
+      setIsAdmin(liveUser.role === "admin");
+      localStorage.setItem("underwatch_user", JSON.stringify(liveUser));
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
 
-const loginWithDiscord = () => {
+  const loginWithDiscord = () => {
     window.location.href = "https://discord.com/oauth2/authorize?client_id=1566207451391594556&response_type=code&redirect_uri=https%3A%2F%2Ftournament-handler-underwatch.vercel.app%2Fapi%2Fauth%2Fdiscord%2Fcallback&scope=identify+email";
   };
 
-
-
-  const loginWithEmail = (email, password) => {
-    if (
-      email === AUTH_CONFIG.adminCredentials.username &&
-      password === AUTH_CONFIG.adminCredentials.password
-    ) {
-      const adminUser = {
-        id: "usr_admin_001",
-        username: "Admin",
-        email: "admin@underwatch.gg",
-        battleTag: "Admin#1337",
-        discordTag: "Admin#0001",
-        role: "admin",
-        avatar: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=150&auto=format&fit=crop"
-      };
-      setUser(adminUser);
-      setIsAdmin(true);
-      return { success: true, isAdmin: true };
-    }
-
-    const standardUser = {
-      id: "usr_std_001",
-      username: email.split("@")[0],
-      email: email,
-      battleTag: "Tracer#11223",
-      discordTag: `${email.split("@")[0]}#1234`,
-      role: "player",
-      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop"
-    };
-    setUser(standardUser);
-    setIsAdmin(false);
-    return { success: true, isAdmin: false };
-  };
-
-  const signUp = (username, email, battleTag, discordTag) => {
-    const newUser = {
-      id: `usr_${Date.now()}`,
-      username,
-      email,
-      battleTag,
-      discordTag,
-      role: "player",
-      avatar: "https://images.unsplash.com/photo-1570295999919-56ceb5ecca61?w=150&auto=format&fit=crop"
-    };
-    setUser(newUser);
-    setIsAdmin(false);
-    return { success: true };
+  const updateUserProfile = (updatedDetails) => {
+    setUser((prev) => {
+      const updated = { ...prev, ...updatedDetails };
+      localStorage.setItem("underwatch_user", JSON.stringify(updated));
+      return updated;
+    });
   };
 
   const logout = () => {
     setUser(null);
     setIsAdmin(false);
-  };
-
-  const updateUserProfile = (updatedDetails) => {
-    setUser((prev) => ({ ...prev, ...updatedDetails }));
+    localStorage.removeItem("underwatch_user");
   };
 
   return (
@@ -101,9 +67,7 @@ const loginWithDiscord = () => {
       value={{
         user,
         isAdmin,
-        loginWithEmail,
         loginWithDiscord,
-        signUp,
         logout,
         updateUserProfile
       }}
