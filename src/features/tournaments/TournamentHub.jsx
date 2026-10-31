@@ -5,6 +5,7 @@ import { validateTeamEligibility } from "../../utils/srValidators.js";
 export const TournamentHub = () => {
   const { tournaments, registerTeamForTournament } = useTournaments();
   const [selectedTournament, setSelectedTournament] = useState(null);
+  const [viewingTeamsTournament, setViewingTeamsTournament] = useState(null);
   
   // Registration Form State
   const [teamName, setTeamName] = useState("");
@@ -50,7 +51,7 @@ export const TournamentHub = () => {
       <div className="bg-[#141A24] border border-[#232D3F] p-6 rounded-xl flex items-center justify-between">
         <div>
           <h2 className="text-xl font-bold text-[#FFD100]">UNDERWATCH TOURNAMENT HUB</h2>
-          <p className="text-xs text-[#8A99AD]">Browse active Overwatch 2 tournaments and register your team squad.</p>
+          <p className="text-xs text-[#8A99AD]">Browse active Overwatch 2 tournaments, view registered squads, and sign up.</p>
         </div>
       </div>
 
@@ -72,16 +73,69 @@ export const TournamentHub = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedTournament(trn)}
-              className="bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold px-4 py-2 rounded text-sm transition-all"
-            >
-              Join Tournament
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setViewingTeamsTournament(trn)}
+                className="bg-[#0B0E14] border border-[#232D3F] hover:border-[#00F0FF] text-white font-semibold px-4 py-2 rounded text-sm transition-all"
+              >
+                View Teams ({trn.registeredTeams?.length || 0})
+              </button>
+              <button
+                onClick={() => setSelectedTournament(trn)}
+                className="bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold px-4 py-2 rounded text-sm transition-all"
+              >
+                Join Tournament
+              </button>
+            </div>
           </div>
         ))}
       </div>
 
+      {/* PUBLIC TEAMS LIST MODAL */}
+      {viewingTeamsTournament && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+          <div className="bg-[#141A24] border border-[#232D3F] p-6 rounded-xl max-w-2xl w-full space-y-4 max-h-[85vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-4 border-b border-[#232D3F]">
+              <div>
+                <h3 className="text-lg font-bold text-[#FFD100]">Registered Teams</h3>
+                <p className="text-xs text-[#8A99AD]">{viewingTeamsTournament.title}</p>
+              </div>
+              <button onClick={() => setViewingTeamsTournament(null)} className="text-[#8A99AD] hover:text-white font-bold">✕</button>
+            </div>
+
+            {(!viewingTeamsTournament.registeredTeams || viewingTeamsTournament.registeredTeams.length === 0) ? (
+              <p className="text-xs text-[#8A99AD] text-center py-6">No teams have registered for this tournament yet. Be the first to join!</p>
+            ) : (
+              <div className="space-y-4">
+                {viewingTeamsTournament.registeredTeams.map((team, idx) => (
+                  <div key={team.id || idx} className="bg-[#0B0E14] border border-[#232D3F] p-4 rounded-lg space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-white text-md">{team.name}</h4>
+                      <span className="text-xs text-[#00F0FF] bg-[#00F0FF]/10 px-2 py-0.5 rounded border border-[#00F0FF]/30 font-mono">
+                        Avg SR: {team.averageSR || 3000}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {team.players?.map((p, pIdx) => (
+                        <div key={pIdx} className="bg-[#141A24] p-2 rounded border border-[#232D3F] flex items-center justify-between">
+                          <div>
+                            <span className="text-[10px] text-[#FFD100] font-bold uppercase mr-1.5">[{p.role}]</span>
+                            <span className="text-white font-medium">{p.name || p.battleTag}</span>
+                          </div>
+                          <span className="text-[11px] text-[#00F0FF] font-mono">{p.battleTag}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* JOIN TOURNAMENT FORM MODAL */}
       {selectedTournament && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-[#141A24] border border-[#232D3F] p-6 rounded-xl max-w-xl w-full space-y-4 max-h-[90vh] overflow-y-auto">
@@ -105,7 +159,7 @@ export const TournamentHub = () => {
                   value={teamName}
                   onChange={(e) => setTeamName(e.target.value)}
                   placeholder="Payload Pirates"
-                  className="w-full bg-[#0B0E14] border border-[#232D3F] rounded px-3 py-2 text-sm text-white"
+                  className="w-full bg-[#0B0E14] border border-[#232D3F] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
                   required
                 />
               </div>
@@ -161,7 +215,7 @@ export const TournamentHub = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedTournament(null)}
-                  className="px-4 py-2 bg-[#0B0E14] text-[#8A99AD] rounded text-xs"
+                  className="px-4 py-2 bg-[#0B0E14] text-[#8A99AD] rounded text-xs hover:text-white"
                 >
                   Cancel
                 </button>

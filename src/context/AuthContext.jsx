@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 import { AUTH_CONFIG } from "../utils/constants.js";
 
 const AuthContext = createContext();
@@ -7,8 +7,43 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Detect and process incoming Discord login params upon redirect
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const discordUsername = params.get("username");
+    const discordId = params.get("id");
+    const discordAvatar = params.get("avatar");
+
+    if (discordUsername && discordId) {
+      const liveUser = {
+        id: `discord_${discordId}`,
+        username: discordUsername,
+        email: `${discordUsername}@discord.com`,
+        battleTag: `${discordUsername}#0000`,
+        discordTag: `${discordUsername}`,
+        role: "player",
+        avatar: discordAvatar
+      };
+      setUser(liveUser);
+      setIsAdmin(false);
+
+      // Clean up parameters from address bar
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
+  const loginWithDiscord = () => {
+    const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID || AUTH_CONFIG.discordClientId;
+    const redirectUri = encodeURIComponent(
+      window.location.origin + "/api/auth/discord/callback"
+    );
+    const scope = encodeURIComponent("identify email");
+
+    // Redirect to Discord OAuth authorization screen
+    window.location.href = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
+  };
+
   const loginWithEmail = (email, password) => {
-    // Check for admin credentials
     if (
       email === AUTH_CONFIG.adminCredentials.username &&
       password === AUTH_CONFIG.adminCredentials.password
@@ -27,7 +62,6 @@ export const AuthProvider = ({ children }) => {
       return { success: true, isAdmin: true };
     }
 
-    // Standard user login mock
     const standardUser = {
       id: "usr_std_001",
       username: email.split("@")[0],
@@ -38,21 +72,6 @@ export const AuthProvider = ({ children }) => {
       avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop"
     };
     setUser(standardUser);
-    setIsAdmin(false);
-    return { success: true, isAdmin: false };
-  };
-
-  const loginWithDiscord = () => {
-    const discordUser = {
-      id: "usr_discord_999",
-      username: "GamerPro",
-      email: "gamer@discord.com",
-      battleTag: "GenjiGod#5678",
-      discordTag: "GamerPro#9999",
-      role: "player",
-      avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop"
-    };
-    setUser(discordUser);
     setIsAdmin(false);
     return { success: true, isAdmin: false };
   };
