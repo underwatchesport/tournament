@@ -4,68 +4,62 @@ import { useAuth } from "../../context/AuthContext.jsx";
 import { validateTeamEligibility } from "../../utils/srValidators.js";
 
 export const TournamentHub = () => {
-  const { tournaments, registerTeamForTournament } = useTournaments();
+  const { tournaments, registerTeamForTournament, updateTeamRoster } = useTournaments();
   const { user } = useAuth();
   
   const [selectedTournament, setSelectedTournament] = useState(null);
   const [viewingTeamsTournament, setViewingTeamsTournament] = useState(null);
+  const [modalTab, setModalTab] = useState("create"); // "create" or "join"
+
+  // Create Team States
   const [teamName, setTeamName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [captainRole, setCaptainRole] = useState(user?.primaryRole || "tank");
   const [successMessage, setSuccessMessage] = useState("");
   const [formErrors, setFormErrors] = useState([]);
+  const [generatedInviteCode, setGeneratedInviteCode] = useState("");
 
-  // Roster includes 5 starting roles + optional sub slots
-  const [roster, setRoster] = useState([
-    { role: "tank", battleTag: "", discordTag: "", sr: 2500, isSub: false },
-    { role: "dps", battleTag: "", discordTag: "", sr: 2500, isSub: false },
-    { role: "dps", battleTag: "", discordTag: "", sr: 2500, isSub: false },
-    { role: "support", battleTag: "", discordTag: "", sr: 2500, isSub: false },
-    { role: "support", battleTag: "", discordTag: "", sr: 2500, isSub: false },
-    { role: "sub", battleTag: "", discordTag: "", sr: 2500, isSub: true },
-    { role: "sub", battleTag: "", discordTag: "", sr: 2500, isSub: true }
-  ]);
+  // Join Team States
+  const [inputInviteCode, setInputInviteCode] = useState("");
+  const [foundTeam, setFoundTeam] = useState(null);
+  const [joinRole, setJoinRole] = useState("dps");
+  const [isSubSlot, setIsSubSlot] = useState(false);
 
-  // Auto-fill captain info when modal opens
+  // Auto-fill captain role if user changes
   useEffect(() => {
-    if (selectedTournament && user) {
-      setRoster((prev) => {
-        const next = [...prev];
-        const targetIdx = next.findIndex(p => p.role === (user.primaryRole || "dps") && !p.isSub) !== -1 
-          ? next.findIndex(p => p.role === (user.primaryRole || "dps") && !p.isSub)
-          : 0;
-
-        next[targetIdx] = {
-          ...next[targetIdx],
-          battleTag: user.battleTag || "",
-          discordTag: user.discordTag || user.username || "",
-          sr: user.sr || 2500
-        };
-        return next;
-      });
+    if (user?.primaryRole) {
+      setCaptainRole(user.primaryRole);
     }
-  }, [selectedTournament, user]);
+  }, [user]);
 
+  // Handle Captain Creating Squad
   const handleCreateTeam = (e) => {
     e.preventDefault();
     setFormErrors([]);
     setSuccessMessage("");
 
-    // Validate active players (excluding empty optional sub slots)
-    const activePlayers = roster.filter(p => p.battleTag.trim() !== "");
-    const mainStarters = activePlayers.filter(p => !p.isSub);
-
-    if (mainStarters.length < 5) {
-      setFormErrors(["Starting roster requires at least 5 main players (1 Tank, 2 DPS, 2 Support)."]);
+    if (!user || !user.battleTag) {
+      setFormErrors(["You must be logged in and have a BattleTag set to create a team."]);
       return;
     }
+
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+    
+    const captainPlayer = {
+      role: captainRole,
+      battleTag: user.battleTag,
+      discordTag: user.discordTag || user.username || "Captain",
+      sr: user.sr || 2500,
+      isCaptain: true,
+      isSub: false
+    };
 
     const teamPayload = {
       id: `tm_${Date.now()}`,
       name: teamName,
-      inviteCode: Math.random().toString(36).substring(2, 8).toUpperCase(),
-      players: activePlayers,
-      captainBattleTag: user?.battleTag || activePlayers[0].battleTag,
-      captainDiscord: user?.discordTag || activePlayers[0].discordTag
+      inviteCode,
+      captainBattleTag: user.battleTag,
+      captainDiscord: user.discordTag || user.username,
+      players: [captainPlayer]
     };
 
     const validation = validateTeamEligibility(teamPayload, selectedTournament.maxSR);
@@ -75,8 +69,66 @@ export const TournamentHub = () => {
     }
 
     registerTeamForTournament(selectedTournament.id, teamPayload);
-    setInviteCode(teamPayload.inviteCode);
-    setSuccessMessage(`Team "${teamName}" created! Share invite code with teammates: ${teamPayload.inviteCode}`);
+    setGeneratedInviteCode(inviteCode);
+    setSuccessMessage(`Team "${teamName}" created successfully! Share your invite code with teammates.`);
+  };
+
+  // Handle Finding Team by Invite Code
+  const handleFindTeamByCode = (e) => {
+    e.preventDefault();
+    setFormErrors([]);
+    setFoundTeam(null);
+
+    let matchedTeam = null;
+    let matchedTrnId = null;
+
+    for (const trn of tournaments) {
+      const found = trn.registeredTeams?.find(
+        (t) => t.inviteCode?.toUpperCase() === inputInviteCode.trim().toUpperCase()
+      );
+      if (found) {
+        matchedTeam = found;
+        matchedTrnId = trn.id;
+        break;
+      }
+    }
+
+    if (!matchedTeam) {
+      setFormErrors(["Invalid invite code. Please check with your team captain."]);
+      return;
+    }
+
+    if ((matchedTeam.players?.length || 0) >= 7) {
+      setFormErrors(["This team's roster and substitute slots are completely full (max 7 players)."]);
+      return;
+    }
+
+    setFoundTeam({ ...matchedTeam, tournamentId: matchedTrnId });
+  };
+
+  // Handle Teammate / Sub Joining Team
+  const handleJoinTeam = (e) => {
+    e.preventDefault();
+    if (!user || !user.battleTag) {
+      setFormErrors(["You must be logged in and have your BattleTag set to join a squad."]);
+      return;
+    }
+
+    const newPlayer = {
+      role: isSubSlot ? "sub" : joinRole,
+      battleTag: user.battleTag,
+      discordTag: user.discordTag || user.username || "Player",
+      sr: user.sr || 2500,
+      isCaptain: false,
+      isSub: isSubSlot
+    };
+
+    const updatedPlayers = [...(foundTeam.players || []), newPlayer];
+    updateTeamRoster(foundTeam.tournamentId, foundTeam.id, updatedPlayers);
+
+    setSuccessMessage(`Successfully joined "${foundTeam.name}" as ${isSubSlot ? "Substitute" : joinRole.toUpperCase()}!`);
+    setFoundTeam(null);
+    setInputInviteCode("");
   };
 
   return (
@@ -114,7 +166,15 @@ export const TournamentHub = () => {
                 View Teams ({trn.registeredTeams?.length || 0})
               </button>
               <button
-                onClick={() => setSelectedTournament(trn)}
+                onClick={() => {
+                  setSelectedTournament(trn);
+                  setModalTab("create");
+                  setFormErrors([]);
+                  setSuccessMessage("");
+                  setGeneratedInviteCode("");
+                  setFoundTeam(null);
+                  setInputInviteCode("");
+                }}
                 className="bg-[#00F0FF] hover:bg-[#00F0FF]/90 text-black font-bold px-4 py-2 rounded text-sm transition-all"
               >
                 Create / Join Squad
@@ -146,26 +206,27 @@ export const TournamentHub = () => {
                       <div className="flex items-center gap-2">
                         <h4 className="font-bold text-white text-md">{team.name}</h4>
                         {team.inviteCode && (
-                          <span className="text-[10px] bg-[#232D3F] text-[#8A99AD] px-2 py-0.5 rounded">
-                            Invite Code: {team.inviteCode}
+                          <span className="text-[10px] bg-[#232D3F] text-[#00F0FF] px-2 py-0.5 rounded border border-[#00F0FF]/30 font-mono">
+                            Code: {team.inviteCode}
                           </span>
                         )}
                       </div>
                       <span className="text-xs text-[#00F0FF] bg-[#00F0FF]/10 px-2 py-0.5 rounded border border-[#00F0FF]/30 font-mono">
-                        Avg SR: {team.averageSR || 2500}
+                        Slots: {team.players?.length || 0} / 7
                       </span>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                       {team.players?.map((p, pIdx) => (
-                        <div key={pIdx} className={`p-2 rounded border flex items-center justify-between ${p.isSub ? "bg-[#1A202C] border-dashed border-[#8A99AD]/40" : "bg-[#141A24] border-[#232D3F]"}`}>
+                        <div key={pIdx} className={`p-2 rounded border flex items-center justify-between ${p.isSub ? "bg-[#1A202C] border-dashed border-purple-400/40" : "bg-[#141A24] border-[#232D3F]"}`}>
                           <div>
                             <span className={`text-[10px] font-bold uppercase mr-1.5 ${p.isSub ? "text-purple-400" : "text-[#FFD100]"}`}>
                               [{p.isSub ? "SUB" : p.role}]
                             </span>
                             <span className="text-white font-medium">{p.battleTag}</span>
+                            {p.isCaptain && <span className="text-[9px] text-[#00F0FF] ml-1">(Captain)</span>}
                           </div>
-                          <span className="text-[11px] text-[#00F0FF] font-mono">{p.sr} SR</span>
+                          <span className="text-[11px] text-[#8A99AD] font-mono">{p.sr} SR</span>
                         </div>
                       ))}
                     </div>
@@ -180,15 +241,33 @@ export const TournamentHub = () => {
       {/* SQUAD REGISTRATION MODAL */}
       {selectedTournament && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#141A24] border border-[#232D3F] p-6 rounded-xl max-w-xl w-full space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#141A24] border border-[#232D3F] p-6 rounded-xl max-w-lg w-full space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-[#FFD100]">Register Squad: {selectedTournament.title}</h3>
+              <h3 className="text-lg font-bold text-[#FFD100]">Squad Registration: {selectedTournament.title}</h3>
               <button onClick={() => setSelectedTournament(null)} className="text-[#8A99AD] hover:text-white">✕</button>
             </div>
 
+            {/* Modal Tabs */}
+            <div className="flex border-b border-[#232D3F]">
+              <button
+                type="button"
+                onClick={() => { setModalTab("create"); setFormErrors([]); setSuccessMessage(""); }}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 ${modalTab === "create" ? "border-[#00F0FF] text-[#00F0FF]" : "border-transparent text-[#8A99AD]"}`}
+              >
+                Create Squad (Captain)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setModalTab("join"); setFormErrors([]); setSuccessMessage(""); }}
+                className={`flex-1 py-2 text-xs font-bold border-b-2 ${modalTab === "join" ? "border-[#00F0FF] text-[#00F0FF]" : "border-transparent text-[#8A99AD]"}`}
+              >
+                Join via Invite Code
+              </button>
+            </div>
+
             {successMessage && (
-              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded space-y-1">
-                <div>{successMessage}</div>
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs rounded">
+                {successMessage}
               </div>
             )}
 
@@ -198,90 +277,138 @@ export const TournamentHub = () => {
               </div>
             )}
 
-            <form onSubmit={handleCreateTeam} className="space-y-4">
-              <div>
-                <label className="block text-xs text-[#8A99AD] mb-1">Team Name</label>
-                <input
-                  type="text"
-                  value={teamName}
-                  onChange={(e) => setTeamName(e.target.value)}
-                  placeholder="e.g., Sector 6 Strikers"
-                  className="w-full bg-[#0B0E14] border border-[#232D3F] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
-                  required
-                />
-              </div>
+            {/* TAB 1: CREATE SQUAD */}
+            {modalTab === "create" && (
+              <form onSubmit={handleCreateTeam} className="space-y-4">
+                <div>
+                  <label className="block text-xs text-[#8A99AD] mb-1">Team Name</label>
+                  <input
+                    type="text"
+                    value={teamName}
+                    onChange={(e) => setTeamName(e.target.value)}
+                    placeholder="e.g., Sector 6 Strikers"
+                    className="w-full bg-[#0B0E14] border border-[#232D3F] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
+                    required
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-white uppercase">Roster & Substitutes</span>
-                {roster.map((p, idx) => (
-                  <div key={idx} className={`p-3 rounded border space-y-2 text-xs ${p.isSub ? "bg-[#0B0E14]/60 border-dashed border-[#8A99AD]/40" : "bg-[#0B0E14] border-[#232D3F]"}`}>
-                    <div className="flex items-center justify-between">
-                      <span className={`font-bold ${p.isSub ? "text-purple-400" : "text-[#00F0FF]"}`}>
-                        {p.isSub ? `SUBSTITUTE SLOT #${idx - 4}` : `${p.role.toUpperCase()} SLOT`}
-                      </span>
-                      {user && idx === 0 && (
-                        <span className="text-[10px] text-[#FFD100] bg-[#FFD100]/10 px-1.5 py-0.5 rounded">Captain (Auto-Filled)</span>
-                      )}
-                    </div>
+                <div>
+                  <label className="block text-xs text-[#8A99AD] mb-1">Your Captain Role</label>
+                  <select
+                    value={captainRole}
+                    onChange={(e) => setCaptainRole(e.target.value)}
+                    className="w-full bg-[#0B0E14] border border-[#232D3F] rounded px-3 py-2 text-sm text-white focus:outline-none focus:border-[#00F0FF]"
+                  >
+                    <option value="tank">Tank</option>
+                    <option value="dps">DPS</option>
+                    <option value="support">Support</option>
+                  </select>
+                </div>
 
-                    <div className="grid grid-cols-3 gap-2">
+                <div className="bg-[#0B0E14] p-3 rounded border border-[#232D3F] text-xs space-y-1 text-[#8A99AD]">
+                  <p className="text-white font-semibold">Captain Profile (Auto-Filled):</p>
+                  <p>BattleTag: <span className="text-[#00F0FF]">{user?.battleTag || "Not Set (Please set via profile)"}</span></p>
+                  <p>SR: <span className="text-[#FFD100]">{user?.sr || 2500}</span></p>
+                </div>
+
+                {generatedInviteCode && (
+                  <div className="p-3 bg-[#00F0FF]/10 border border-[#00F0FF]/30 rounded text-center space-y-1">
+                    <span className="text-[10px] text-[#8A99AD] block">YOUR TEAM INVITE CODE</span>
+                    <span className="text-xl font-mono font-bold text-[#00F0FF] tracking-widest">{generatedInviteCode}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTournament(null)}
+                    className="px-4 py-2 bg-[#0B0E14] text-[#8A99AD] rounded text-xs hover:text-white"
+                  >
+                    Close
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-[#00F0FF] text-black font-bold rounded text-xs hover:bg-[#00F0FF]/90"
+                  >
+                    Create Squad & Get Code
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* TAB 2: JOIN VIA CODE */}
+            {modalTab === "join" && (
+              <div className="space-y-4">
+                <form onSubmit={handleFindTeamByCode} className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-[#8A99AD] mb-1">Enter Team Invite Code</label>
+                    <div className="flex gap-2">
                       <input
                         type="text"
-                        value={p.battleTag}
-                        onChange={(e) => {
-                          const updated = [...roster];
-                          updated[idx].battleTag = e.target.value;
-                          setRoster(updated);
-                        }}
-                        placeholder="BattleTag#1234"
-                        className="bg-[#141A24] border border-[#232D3F] rounded px-2 py-1 text-white"
-                        required={!p.isSub}
+                        value={inputInviteCode}
+                        onChange={(e) => setInputInviteCode(e.target.value)}
+                        placeholder="e.g. A3B9X2"
+                        className="flex-1 bg-[#0B0E14] border border-[#232D3F] rounded px-3 py-2 text-sm text-white uppercase tracking-wider focus:outline-none focus:border-[#00F0FF]"
+                        required
                       />
-                      <input
-                        type="text"
-                        value={p.discordTag}
-                        onChange={(e) => {
-                          const updated = [...roster];
-                          updated[idx].discordTag = e.target.value;
-                          setRoster(updated);
-                        }}
-                        placeholder="Discord Handle"
-                        className="bg-[#141A24] border border-[#232D3F] rounded px-2 py-1 text-white"
-                        required={!p.isSub}
-                      />
-                      <input
-                        type="number"
-                        value={p.sr}
-                        onChange={(e) => {
-                          const updated = [...roster];
-                          updated[idx].sr = parseInt(e.target.value, 10) || 0;
-                          setRoster(updated);
-                        }}
-                        placeholder="SR"
-                        className="bg-[#141A24] border border-[#232D3F] rounded px-2 py-1 text-white"
-                        required={!p.isSub}
-                      />
+                      <button
+                        type="submit"
+                        className="px-4 py-2 bg-[#232D3F] hover:bg-[#00F0FF] hover:text-black text-white rounded text-xs font-bold transition-all"
+                      >
+                        Find Team
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                </form>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTournament(null)}
-                  className="px-4 py-2 bg-[#0B0E14] text-[#8A99AD] rounded text-xs hover:text-white"
-                >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-[#00F0FF] text-black font-bold rounded text-xs hover:bg-[#00F0FF]/90"
-                >
-                  Register Team & Generate Invite Code
-                </button>
+                {foundTeam && (
+                  <form onSubmit={handleJoinTeam} className="bg-[#0B0E14] p-4 rounded border border-[#00F0FF]/30 space-y-3">
+                    <div>
+                      <h4 className="font-bold text-white text-sm">{foundTeam.name}</h4>
+                      <p className="text-xs text-[#8A99AD]">Captain: {foundTeam.captainBattleTag} | Current Members: {foundTeam.players?.length || 0}/7</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 text-xs text-white cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isSubSlot}
+                          onChange={(e) => setIsSubSlot(e.target.checked)}
+                          className="rounded border-[#232D3F]"
+                        />
+                        Join as Substitute (Sub Slot)
+                      </label>
+                    </div>
+
+                    {!isSubSlot && (
+                      <div>
+                        <label className="block text-xs text-[#8A99AD] mb-1">Select Role Slot</label>
+                        <select
+                          value={joinRole}
+                          onChange={(e) => setJoinRole(e.target.value)}
+                          className="w-full bg-[#141A24] border border-[#232D3F] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#00F0FF]"
+                        >
+                          <option value="tank">Tank</option>
+                          <option value="dps">DPS</option>
+                          <option value="support">Support</option>
+                        </select>
+                      </div>
+                    )}
+
+                    <div className="bg-[#141A24] p-2.5 rounded border border-[#232D3F] text-xs text-[#8A99AD]">
+                      Joining as: <span className="text-[#00F0FF]">{user?.battleTag || "Not Set"}</span> ({user?.sr || 2500} SR)
+                    </div>
+
+                    <button
+                      type="submit"
+                      className="w-full py-2 bg-[#00F0FF] text-black font-bold rounded text-xs hover:bg-[#00F0FF]/90 transition-all"
+                    >
+                      Confirm & Join Roster Slot
+                    </button>
+                  </form>
+                )}
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}
