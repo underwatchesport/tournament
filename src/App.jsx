@@ -7,6 +7,13 @@ import { AdminSidebar } from "./components/layout/AdminSidebar.jsx";
 import { AuthModal } from "./features/auth/AuthModal.jsx";
 import { PlayerProfile } from "./features/player-profile/PlayerProfile.jsx";
 
+// Back Office Imports
+import { AdminDashboard } from "./admin/dashboard/AdminDashboard.jsx";
+import { TournamentManager } from "./admin/tournament-mgr/TournamentManager.jsx";
+import { DisputeHub } from "./admin/dispute-hub/DisputeHub.jsx";
+import { UserManagement } from "./admin/user-management/UserManagement.jsx";
+import { BroadcastDesk } from "./admin/broadcast-desk/BroadcastDesk.jsx";
+
 const AppContent = () => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("tournaments");
@@ -18,6 +25,23 @@ const AppContent = () => {
       setIsAuthModalOpen(true);
     } else {
       setActiveTab(tab);
+    }
+  };
+
+  const renderAdminContent = () => {
+    switch (activeAdminTab) {
+      case "admin-dashboard":
+        return <AdminDashboard />;
+      case "admin-tournaments":
+        return <TournamentManager />;
+      case "admin-disputes":
+        return <DisputeHub />;
+      case "admin-users":
+        return <UserManagement />;
+      case "admin-broadcast":
+        return <BroadcastDesk />;
+      default:
+        return <AdminDashboard />;
     }
   };
 
@@ -39,14 +63,7 @@ const AppContent = () => {
         <div className="flex flex-1 w-full min-h-[calc(100vh-73px)]">
           <AdminSidebar activeAdminTab={activeAdminTab} setActiveAdminTab={setActiveAdminTab} />
           <main className="flex-1 p-6 bg-[#0B0E14] overflow-y-auto">
-            <div className="p-6 bg-[#141A24] rounded-xl border border-[#232D3F]">
-              <h2 className="text-xl font-bold text-[#FFD100] mb-2 uppercase">
-                {activeAdminTab.replace("admin-", "").toUpperCase()} MODULE
-              </h2>
-              <p className="text-[#8A99AD] text-sm">
-                Active Module: <span className="text-[#00F0FF]">{activeAdminTab}</span>. Feature components loading in Phase 4.
-              </p>
-            </div>
+            {renderAdminContent()}
           </main>
         </div>
       );
