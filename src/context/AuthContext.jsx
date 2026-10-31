@@ -4,10 +4,11 @@ import { AUTH_CONFIG } from "../utils/constants.js";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
+  // START WITH NULL USER - NO MOCK ACCOUNT DEFAULT
   const [user, setUser] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  // Detect and process incoming Discord login params upon redirect
+  // Check URL parameters when Discord redirects back to the site
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discordUsername = params.get("username");
@@ -27,7 +28,7 @@ export const AuthProvider = ({ children }) => {
       setUser(liveUser);
       setIsAdmin(false);
 
-      // Clean up parameters from address bar
+      // Clean parameters from address bar
       window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, []);
@@ -39,7 +40,7 @@ export const AuthProvider = ({ children }) => {
     );
     const scope = encodeURIComponent("identify email");
 
-    // Redirect to Discord OAuth authorization screen
+    // Force browser redirect directly to Discord's official consent screen
     window.location.href = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
   };
 
