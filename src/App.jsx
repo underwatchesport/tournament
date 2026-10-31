@@ -4,14 +4,28 @@ import { AdminProvider } from "./context/AdminContext.jsx";
 import { TournamentProvider } from "./context/TournamentContext.jsx";
 import { Navbar } from "./components/layout/Navbar.jsx";
 import { AdminSidebar } from "./components/layout/AdminSidebar.jsx";
+import { AuthModal } from "./features/auth/AuthModal.jsx";
+import { PlayerProfile } from "./features/player-profile/PlayerProfile.jsx";
 
 const AppContent = () => {
   const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState("tournaments");
   const [activeAdminTab, setActiveAdminTab] = useState("admin-dashboard");
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  const handleTabChange = (tab) => {
+    if (tab === "login") {
+      setIsAuthModalOpen(true);
+    } else {
+      setActiveTab(tab);
+    }
+  };
 
   const renderContent = () => {
-    // Handling Admin Back Office view
+    if (activeTab === "profile") {
+      return <PlayerProfile />;
+    }
+
     if (activeTab.startsWith("admin")) {
       if (!isAdmin) {
         return (
@@ -30,7 +44,7 @@ const AppContent = () => {
                 {activeAdminTab.replace("admin-", "").toUpperCase()} MODULE
               </h2>
               <p className="text-[#8A99AD] text-sm">
-                Active Module: <span className="text-[#00F0FF]">{activeAdminTab}</span>. Feature components loading in Phase 3 & 4.
+                Active Module: <span className="text-[#00F0FF]">{activeAdminTab}</span>. Feature components loading in Phase 4.
               </p>
             </div>
           </main>
@@ -38,7 +52,6 @@ const AppContent = () => {
       );
     }
 
-    // Standard Public views fallback container
     return (
       <main className="max-w-7xl mx-auto p-6">
         <div className="p-8 bg-[#141A24] rounded-xl border border-[#232D3F]">
@@ -53,8 +66,9 @@ const AppContent = () => {
 
   return (
     <div className="min-h-screen bg-[#0B0E14] flex flex-col font-sans">
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Navbar activeTab={activeTab} setActiveTab={handleTabChange} />
       {renderContent()}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 };
