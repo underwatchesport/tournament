@@ -1,55 +1,67 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useState, useEffect } from "react";
 
 const TournamentContext = createContext();
 
+const initialTournaments = [
+  {
+    id: "trn_1",
+    title: "Underwatch Season 1 Kickoff",
+    status: "UPCOMING",
+    format: "Single Elimination",
+    maxSR: 3500,
+    prizePool: "$1,500",
+    maxTeams: 16,
+    registeredTeams: []
+  }
+];
+
 export const TournamentProvider = ({ children }) => {
-  const [tournaments, setTournaments] = useState([
-    {
-      id: "trn_001",
-      title: "Underwatch Season 1 Kickoff",
-      format: "Single Elimination",
-      maxSR: 3500,
-      prizePool: "$1,500",
-      status: "UPCOMING",
-      startDate: "2026-04-10",
-      maxTeams: 16,
-      registeredTeams: [
-        {
-          id: "tm_01",
-          name: "Cyber Foxes",
-          captainBattleTag: "FoxLeader#1111",
-          captainDiscord: "FoxLeader#0001",
-          averageSR: 3420,
-          players: [
-            { name: "ApexTank", role: "tank", battleTag: "ApexTank#1234", discordTag: "Apex#1111", sr: 3450 },
-            { name: "ViperDPS", role: "dps", battleTag: "ViperDPS#2345", discordTag: "Viper#2222", sr: 3410 },
-            { name: "ShadowDPS", role: "dps", battleTag: "ShadowDPS#3456", discordTag: "Shadow#3333", sr: 3390 },
-            { name: "AuraSupport", role: "support", battleTag: "AuraSup#4567", discordTag: "Aura#4444", sr: 3430 },
-            { name: "ZenMaster", role: "support", battleTag: "ZenMaster#5678", discordTag: "Zen#5555", sr: 3420 }
-          ]
-        }
-      ]
+  // Load saved tournaments/teams from localStorage on initial load
+  const [tournaments, setTournaments] = useState(() => {
+    const saved = localStorage.getItem("underwatch_tournaments");
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (err) {
+        console.error("Failed to parse saved tournaments", err);
+      }
     }
-  ]);
+    return initialTournaments;
+  });
 
-  const createTournament = (newTournament) => {
-    const created = {
-      ...newTournament,
-      id: `trn_${Date.now()}`,
-      registeredTeams: [],
-      status: "UPCOMING"
-    };
-    setTournaments((prev) => [created, ...prev]);
-  };
+  // Save to localStorage whenever tournaments change
+  useEffect(() => {
+    localStorage.setItem("underwatch_tournaments", JSON.stringify(tournaments));
+  }, [tournaments]);
 
-  const registerTeamForTournament = (tournamentId, teamData) => {
-    setTournaments((prev) =>
-      prev.map((trn) => {
+  // Register a new team to a tournament
+  const registerTeamForTournament = (tournamentId, newTeam) => {
+    setTournaments((prevTournaments) =>
+      prevTournaments.map((trn) => {
         if (trn.id === tournamentId) {
+          const existingTeams = trn.registeredTeams || [];
           return {
             ...trn,
-            registeredTeams: [...trn.registeredTeams, teamData]
+            registeredTeams: [...existingTeams, newTeam]
           };
+        }
+        return trn;
+      })
+    );
+  };
+
+  // Update a team's roster when new players/subs join via invite code
+  const updateTeamRoster = (tournamentId, teamId, updatedPlayers) => {
+    setTournaments((prevTournaments) =>
+      prevTournaments.map((trn) => {
+        if (trn.id === tournamentId) {
+          const updatedTeams = (trn.registeredTeams || []).map((t) => {
+            if (t.id === teamId) {
+              return { ...t, players: updatedPlayers };
+            }
+            return t;
+          });
+          return { ...trn, registeredTeams: updatedTeams };
         }
         return trn;
       })
@@ -60,8 +72,8 @@ export const TournamentProvider = ({ children }) => {
     <TournamentContext.Provider
       value={{
         tournaments,
-        createTournament,
-        registerTeamForTournament
+        registerTeamForTournament,
+        updateTeamRoster
       }}
     >
       {children}
