@@ -33,17 +33,18 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
-  const loginWithDiscord = () => {
+const loginWithDiscord = () => {
     const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID || AUTH_CONFIG.discordClientId;
+    
+    // Construct exact clean redirect URL
     const redirectUri = encodeURIComponent(
-      window.location.origin + "/api/auth/discord/callback"
+      "https://tournament-handler-underwatch.vercel.app/api/auth/discord/callback"
     );
     const scope = encodeURIComponent("identify email");
 
-    // Force browser redirect directly to Discord's official consent screen
+    // Standard Discord OAuth2 authorization URL
     window.location.href = `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`;
   };
-
   const loginWithEmail = (email, password) => {
     if (
       email === AUTH_CONFIG.adminCredentials.username &&
