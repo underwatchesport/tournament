@@ -15,7 +15,6 @@ export const AuthProvider = ({ children }) => {
     return parsed?.role === "admin";
   });
 
-  // Handle incoming OAuth callback params and preserve Discord user profile
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const discordUsername = params.get("username");
@@ -52,6 +51,27 @@ export const AuthProvider = ({ children }) => {
     window.location.href = "https://discord.com/oauth2/authorize?client_id=1566207451391594556&response_type=code&redirect_uri=https%3A%2F%2Ftournament-handler-underwatch.vercel.app%2Fapi%2Fauth%2Fdiscord%2Fcallback&scope=identify+email";
   };
 
+  const loginWithEmail = (username, password) => {
+    if ((username === "admin" || username === "admin@underwatch.com") && password === "admin") {
+      const adminUser = {
+        id: "admin_user",
+        username: "Administrator",
+        email: "admin@underwatch.com",
+        battleTag: "Admin#0001",
+        discordTag: "admin",
+        role: "admin",
+        primaryRole: "tank",
+        sr: 3500,
+        avatar: "https://cdn.discordapp.com/embed/avatars/0.png"
+      };
+      setUser(adminUser);
+      setIsAdmin(true);
+      localStorage.setItem("underwatch_active_user", JSON.stringify(adminUser));
+      return { success: true };
+    }
+    return { success: false };
+  };
+
   const updateUserProfile = (updatedDetails) => {
     setUser((prev) => {
       const updated = { ...prev, ...updatedDetails };
@@ -75,6 +95,7 @@ export const AuthProvider = ({ children }) => {
         user,
         isAdmin,
         loginWithDiscord,
+        loginWithEmail,
         logout,
         updateUserProfile
       }}
